@@ -1,35 +1,39 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+import React, { useState, useRef } from 'react'
+import Toolbar from './components/Toolbar'
+import Sidebar, { View } from './components/Sidebar'
+import HomeView from './views/HomeView'
+import SettingsView from './views/SettingsView'
+import ProfileView from './views/ProfileView'
+import StatusBar from './components/StatusBar'
+import Toast from './components/Toast'
 
 function App(): React.JSX.Element {
-  const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
+  const [activeView, setActiveView] = useState<View>('home')
+  const [isStatusBarVisible, setStatusBarVisibility] = useState(true)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+
+  const showToast = (message: string) => {
+    setToastMessage(message)
+  }
 
   return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-        &nbsp;and <span className="ts">TypeScript</span>
+    <div className="h-screen bg-gray-100 flex">
+      <Sidebar activeView={activeView} setActiveView={setActiveView} />
+      <div className="flex-grow flex flex-col">
+        <Toolbar />
+        <main className="flex-grow p-4 overflow-y-auto">
+          <div className={activeView === 'home' ? 'block' : 'hidden'}><HomeView /></div>
+          <div className={activeView === 'settings' ? 'block' : 'hidden'}><SettingsView /></div>
+          <div className={activeView === 'profile' ? 'block' : 'hidden'}><ProfileView /></div>
+        </main>
+        {isStatusBarVisible && <StatusBar />}
       </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-        </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
-      </div>
-      <Versions></Versions>
-    </>
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
+    </div>
   )
 }
 
 export default App
+
+
