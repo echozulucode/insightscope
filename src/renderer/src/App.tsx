@@ -4,6 +4,7 @@ import Sidebar, { View } from './components/Sidebar'
 import HomeView from './views/HomeView'
 import SettingsView from './views/SettingsView'
 import ProfileView from './views/ProfileView'
+import ScatterPlotView from './views/ScatterPlotView'
 import StatusBar from './components/StatusBar'
 import Toast from './components/Toast'
 
@@ -26,6 +27,7 @@ function App(): React.JSX.Element {
           <div className={activeView === 'home' ? 'block' : 'hidden'}><HomeView /></div>
           <div className={activeView === 'settings' ? 'block' : 'hidden'}><SettingsView /></div>
           <div className={activeView === 'profile' ? 'block' : 'hidden'}><ProfileView /></div>
+          <div className={activeView === 'scatterplot' ? 'block h-full' : 'hidden'}><ScatterPlotView /></div>
         </main>
         {isStatusBarVisible && <StatusBar />}
       </div>
