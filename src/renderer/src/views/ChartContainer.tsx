@@ -217,7 +217,7 @@ const ChartContainer: React.FC = () => {
           onFitToScreenChange={(isFit) => handleFitToScreenChange(activeTab.id, isFit)}
         />
       )}
-      <main ref={mainContentRef} className="flex-grow p-4 overflow-y-auto">
+      <main ref={mainContentRef} className="flex-grow p-4 overflow-y-auto min-h-0">
         {activeTab ? (
           <ChartView data={getChartData(activeTab)} layout={getLayout(activeTab)} />
         ) : (

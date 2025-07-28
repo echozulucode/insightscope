@@ -21,7 +21,7 @@ function App(): React.JSX.Element {
   return (
     <div className="h-screen bg-gray-100 flex">
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
-      <div className="flex-grow flex flex-col">
+      <div className="flex-grow flex flex-col min-h-0">
         <Toolbar />
         <main className="flex-grow bg-white overflow-hidden">
           <div className={activeView === 'home' ? 'block' : 'hidden'}><HomeView /></div>
