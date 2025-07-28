@@ -220,24 +220,28 @@ const ChartContainer: React.FC = () => {
   const handleChartUpdate = (figure: Readonly<Figure>): void => {
     if (!activeTab) return
 
-    const newLayout = figure.layout
-    if (
-      JSON.stringify(newLayout.xaxis?.range) !== JSON.stringify(activeTab.layout.xaxis?.range) ||
-      JSON.stringify(newLayout.yaxis?.range) !== JSON.stringify(activeTab.layout.yaxis?.range)
-    ) {
-      const updatedLayout: Partial<Layout> = {
-        ...activeTab.layout,
-        xaxis: {
-          ...activeTab.layout.xaxis,
-          range: newLayout.xaxis?.range,
-          autorange: false
-        },
-        yaxis: {
-          ...activeTab.layout.yaxis,
-          range: newLayout.yaxis?.range,
-          autorange: false
+    const { layout: newLayout } = figure
+    const updatedLayout = { ...activeTab.layout }
+    let layoutChanged = false
+
+    Object.keys(newLayout).forEach((key) => {
+      if (key.startsWith('xaxis') || key.startsWith('yaxis')) {
+        const axisName = key as keyof Layout
+        const newAxis = newLayout[axisName]
+        const currentAxis = activeTab.layout[axisName]
+
+        if (newAxis && JSON.stringify(newAxis.range) !== JSON.stringify(currentAxis?.range)) {
+          updatedLayout[axisName] = {
+            ...currentAxis,
+            range: newAxis.range,
+            autorange: false
+          }
+          layoutChanged = true
         }
       }
+    })
+
+    if (layoutChanged) {
       setTabs(
         tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: updatedLayout } : tab))
       )
