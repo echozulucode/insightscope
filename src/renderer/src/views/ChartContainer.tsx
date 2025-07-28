@@ -242,9 +242,7 @@ const ChartContainer: React.FC = () => {
     })
 
     if (layoutChanged) {
-      setTabs(
-        tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: updatedLayout } : tab))
-      )
+      setTabs(tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: updatedLayout } : tab)))
     }
   }
 
@@ -271,9 +269,7 @@ const ChartContainer: React.FC = () => {
       yaxis: { ...activeTab.layout.yaxis, autorange: false, range: newYRange }
     }
 
-    setTabs(
-      tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab))
-    )
+    setTabs(tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab)))
   }
 
   const resetZoom = (): void => {
@@ -284,9 +280,7 @@ const ChartContainer: React.FC = () => {
       xaxis: { ...activeTab.layout.xaxis, autorange: true, range: undefined },
       yaxis: { ...activeTab.layout.yaxis, autorange: true, range: undefined }
     }
-    setTabs(
-      tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab))
-    )
+    setTabs(tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab)))
   }
 
   const saveImage = (): void => {
