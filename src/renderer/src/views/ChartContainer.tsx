@@ -1,0 +1,195 @@
+import React, { useState, useEffect } from 'react'
+import Papa from 'papaparse'
+import ChartView from './ChartView'
+import ChartControls, { LayoutMode } from '../components/ChartControls'
+import Toast from '../components/Toast'
+
+interface ChartTab {
+  id: string
+  name: string
+  data: Plotly.Data[]
+  layout: Partial<Plotly.Layout>
+  layoutMode: LayoutMode
+  yAxisAssignments: { [traceName: string]: 'y' | 'y2' }
+}
+
+const ChartContainer: React.FC = () => {
+  const [tabs, setTabs] = useState<ChartTab[]>([])
+  const [activeTabId, setActiveTabId] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const showToast = (message: string) => {
+    setToastMessage(message)
+  }
+
+  const handleOpenFile = async () => {
+    const filePath = await window.api.openFile()
+    if (filePath) {
+      const fileContent = await window.api.readFile(filePath)
+      if (fileContent) {
+        const parsed = Papa.parse(fileContent, { header: true })
+        const headers = parsed.meta.fields?.slice(1) ?? []
+        const timeColumn = parsed.meta.fields?.[0] ?? 'time'
+
+        const traces: Plotly.Data[] = headers.map((header) => ({
+          x: parsed.data.map((row) => row[timeColumn]),
+          y: parsed.data.map((row) => row[header]),
+          name: header,
+          type: 'scatter',
+          mode: 'lines'
+        }))
+
+        const yAxisAssignments = headers.reduce((acc, header) => {
+          acc[header] = 'y'
+          return acc
+        }, {})
+
+        const newTab: ChartTab = {
+          id: filePath,
+          name: filePath.split(/[\\/]/).pop() ?? 'Untitled',
+          data: traces,
+          layout: {
+            title: `Chart for ${filePath}`,
+            xaxis: { title: timeColumn },
+            yaxis: { title: 'Value' }
+          },
+          layoutMode: 'combined',
+          yAxisAssignments
+        }
+
+        setTabs([...tabs, newTab])
+        setActiveTabId(newTab.id)
+      } else {
+        showToast('Error reading file content.')
+      }
+    }
+  }
+
+  useEffect(() => {
+    window.api.onOpenCsv(handleOpenFile)
+  }, [tabs])
+
+  const handleLayoutModeChange = (tabId: string, mode: LayoutMode) => {
+    setTabs(
+      tabs.map((tab) =>
+        tab.id === tabId ? { ...tab, layoutMode: mode } : tab
+      )
+    )
+  }
+
+  const handleAssignY2 = (tabId: string) => {
+    setTabs(
+      tabs.map((tab) => {
+        if (tab.id === tabId && tab.data.length > 1) {
+          const secondTraceName = tab.data[1].name
+          if (secondTraceName) {
+            return {
+              ...tab,
+              yAxisAssignments: {
+                ...tab.yAxisAssignments,
+                [secondTraceName]: 'y2'
+              }
+            }
+          }
+        }
+        return tab
+      })
+    )
+  }
+
+  const activeTab = tabs.find((tab) => tab.id === activeTabId)
+
+  const getChartData = (tab: ChartTab): Plotly.Data[] => {
+    if (tab.layoutMode === 'stacked') {
+      return tab.data.map((trace, index) => ({
+        ...trace,
+        yaxis: index === 0 ? 'y' : `y${index + 1}`
+      }))
+    }
+    return tab.data.map((trace) => ({
+      ...trace,
+      yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y'
+    }))
+  }
+
+  const getLayout = (tab: ChartTab): Partial<Plotly.Layout> => {
+    if (tab.layoutMode === 'stacked') {
+      const traceCount = tab.data.length
+      const newLayout: Partial<Plotly.Layout> = {
+        ...tab.layout,
+        grid: { rows: traceCount, columns: 1, pattern: 'independent' },
+        height: 300 * traceCount
+      }
+      tab.data.forEach((trace, index) => {
+        const yAxisName = index === 0 ? 'yaxis' : `yaxis${index + 1}`
+        const xAxisName = index === 0 ? 'xaxis' : `xaxis${index + 1}`
+        newLayout[yAxisName] = { title: trace.name }
+        if (index > 0) newLayout[xAxisName] = { ...tab.layout.xaxis, matches: 'x' }
+        else newLayout[xAxisName] = { ...tab.layout.xaxis }
+      })
+      return newLayout
+    }
+
+    const newLayout = { ...tab.layout, yaxis: { title: 'Value' } }
+    const hasY2 = Object.values(tab.yAxisAssignments).includes('y2')
+    if (hasY2) {
+      newLayout.yaxis2 = {
+        title: 'Secondary Value',
+        overlaying: 'y',
+        side: 'right'
+      }
+    }
+    return newLayout
+  }
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex border-b border-gray-300">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTabId(tab.id)}
+            className={`px-4 py-2 ${
+              activeTabId === tab.id
+                ? 'bg-white border-t border-l border-r rounded-t'
+                : 'bg-gray-200'
+            }`}
+          >
+            {tab.name}
+          </button>
+        ))}
+      </div>
+      {activeTab && (
+        <ChartControls
+          layoutMode={activeTab.layoutMode}
+          onLayoutModeChange={(mode) => handleLayoutModeChange(activeTab.id, mode)}
+          onAssignY2={() => handleAssignY2(activeTab.id)}
+          traceCount={activeTab.data.length}
+        />
+      )}
+      <main className="flex-grow p-4 overflow-y-auto">
+        {activeTab ? (
+          <ChartView
+            data={getChartData(activeTab)}
+            layout={getLayout(activeTab)}
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full">
+            <div className="text-center">
+              <h2 className="text-2xl font-semibold mb-4">No file opened</h2>
+              <p>Use the File menu to open a CSV file.</p>
+            </div>
+          </div>
+        )}
+      </main>
+      {toastMessage && (
+        <Toast
+          message={toastMessage}
+          onClose={() => setToastMessage(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+export default ChartContainer

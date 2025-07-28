@@ -1,5 +1,6 @@
 import { app, shell, BrowserWindow, ipcMain, Menu, dialog } from 'electron'
 import { join } from 'path'
+import { readFileSync } from 'fs'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
@@ -23,6 +24,12 @@ function createWindow(): void {
     {
       label: 'File',
       submenu: [
+        {
+          label: 'Open CSV',
+          click: () => {
+            mainWindow.webContents.send('menu:open-csv')
+          }
+        },
         {
           label: 'Exit',
           click: () => {
@@ -85,6 +92,26 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  ipcMain.handle('dialog:openFile', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'CSV Files', extensions: ['csv'] }]
+    })
+    if (!canceled) {
+      return filePaths[0]
+    }
+    return undefined
+  })
+
+  ipcMain.handle('fs:readFile', async (_event, filePath) => {
+    try {
+      return readFileSync(filePath, 'utf-8');
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
+  });
 
   createWindow()
 
