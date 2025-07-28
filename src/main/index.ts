@@ -106,12 +106,12 @@ app.whenReady().then(() => {
 
   ipcMain.handle('fs:readFile', async (_event, filePath) => {
     try {
-      return readFileSync(filePath, 'utf-8')
+      return readFileSync(filePath, 'utf-8');
     } catch (error) {
-      console.error(error)
-      return null
+      console.error(error);
+      return null;
     }
-  })
+  });
 
   createWindow()
 

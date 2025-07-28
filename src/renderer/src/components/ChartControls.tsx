@@ -1,14 +1,14 @@
-import React from 'react'
+import React from 'react';
 
-export type LayoutMode = 'combined' | 'stacked'
+export type LayoutMode = 'combined' | 'stacked';
 
 interface ChartControlsProps {
-  layoutMode: LayoutMode
-  onLayoutModeChange: (mode: LayoutMode) => void
-  onAssignY2: () => void
-  traceCount: number
-  isFitToScreen: boolean
-  onFitToScreenChange: (isFit: boolean) => void
+  layoutMode: LayoutMode;
+  onLayoutModeChange: (mode: LayoutMode) => void;
+  onAssignY2: () => void;
+  traceCount: number;
+  isFitToScreen: boolean;
+  onFitToScreenChange: (isFit: boolean) => void;
 }
 
 const ChartControls: React.FC<ChartControlsProps> = ({
@@ -66,7 +66,7 @@ const ChartControls: React.FC<ChartControlsProps> = ({
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default ChartControls
+export default ChartControls;

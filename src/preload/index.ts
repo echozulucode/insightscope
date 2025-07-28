@@ -12,8 +12,7 @@ const api = {
       ipcRenderer.removeListener('menu:open-csv', handler)
     }
   },
-  readFile: (filePath: string): Promise<string | null> =>
-    ipcRenderer.invoke('fs:readFile', filePath)
+  readFile: (filePath: string): Promise<string | null> => ipcRenderer.invoke('fs:readFile', filePath)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

@@ -24,21 +24,11 @@ function App(): React.JSX.Element {
       <div className="flex-grow flex flex-col min-h-0">
         <Toolbar />
         <main className="flex-grow bg-white overflow-hidden">
-          <div className={activeView === 'home' ? 'block' : 'hidden'}>
-            <HomeView />
-          </div>
-          <div className={activeView === 'settings' ? 'block' : 'hidden'}>
-            <SettingsView />
-          </div>
-          <div className={activeView === 'profile' ? 'block' : 'hidden'}>
-            <ProfileView />
-          </div>
-          <div className={activeView === 'scatterplot' ? 'block h-full' : 'hidden'}>
-            <ScatterPlotView />
-          </div>
-          <div className={activeView === 'chartviewer' ? 'block h-full' : 'hidden'}>
-            <ChartContainer />
-          </div>
+          <div className={activeView === 'home' ? 'block' : 'hidden'}><HomeView /></div>
+          <div className={activeView === 'settings' ? 'block' : 'hidden'}><SettingsView /></div>
+          <div className={activeView === 'profile' ? 'block' : 'hidden'}><ProfileView /></div>
+          <div className={activeView === 'scatterplot' ? 'block h-full' : 'hidden'}><ScatterPlotView /></div>
+          <div className={activeView === 'chartviewer' ? 'block h-full' : 'hidden'}><ChartContainer /></div>
         </main>
         {isStatusBarVisible && <StatusBar />}
       </div>
