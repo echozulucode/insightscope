@@ -1,6 +1,8 @@
+import React from 'react'
+
 // src/renderer/src/components/StatusBar.tsx
 
-function StatusBar(): JSX.Element {
+function StatusBar(): React.ReactElement {
   return (
     <div className="h-6 bg-gray-200 border-t border-gray-300 px-4 flex items-center text-sm text-gray-600">
       <p>Ready</p>

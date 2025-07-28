@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { FaHome, FaCog, FaUser, FaFileAlt, FaChess, FaEllipsisH, FaUpload, FaProjectDiagram, FaRegMap, FaChartBar, FaChartLine } from 'react-icons/fa'
+import { FaHome, FaCog, FaUser, FaEllipsisH, FaChartBar, FaChartLine } from 'react-icons/fa'
 
 export type View = 'home' | 'settings' | 'profile' | 'scatterplot' | 'chartviewer'
 

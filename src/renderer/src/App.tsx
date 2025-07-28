@@ -11,12 +11,8 @@ import Toast from './components/Toast'
 
 function App(): React.JSX.Element {
   const [activeView, setActiveView] = useState<View>('home')
-  const [isStatusBarVisible, setStatusBarVisibility] = useState(true)
+  const [isStatusBarVisible] = useState(true)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
-
-  const showToast = (message: string) => {
-    setToastMessage(message)
-  }
 
   return (
     <div className="h-screen bg-gray-100 flex">

@@ -1,5 +1,5 @@
 import React from 'react'
-import { FaFile, FaFolderOpen, FaSave, FaUndo, FaRedo, FaPlus } from 'react-icons/fa'
+import { FaFile, FaFolderOpen, FaSave, FaUndo, FaRedo } from 'react-icons/fa'
 
 interface ToolbarProps {
 }

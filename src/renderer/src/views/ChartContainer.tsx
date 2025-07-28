@@ -47,9 +47,10 @@ const ChartContainer: React.FC = () => {
         const headers = parsed.meta.fields?.slice(1) ?? []
         const timeColumn = parsed.meta.fields?.[0] ?? 'time'
 
+        const data = parsed.data as { [key: string]: any }[]
         const traces: Plotly.Data[] = headers.map((header) => ({
-          x: parsed.data.map((row) => row[timeColumn]),
-          y: parsed.data.map((row) => row[header]),
+          x: data.map((row) => row[timeColumn]),
+          y: data.map((row) => row[header]),
           name: header,
           type: 'scatter',
           mode: 'lines'
@@ -65,9 +66,9 @@ const ChartContainer: React.FC = () => {
           name: filePath.split(/[\\/]/).pop() ?? 'Untitled',
           data: traces,
           layout: {
-            title: `Chart for ${filePath}`,
-            xaxis: { title: timeColumn },
-            yaxis: { title: 'Value' }
+            title: { text: `Chart for ${filePath}` },
+            xaxis: { title: { text: timeColumn } },
+            yaxis: { title: { text: 'Value' } }
           },
           layoutMode: 'combined',
           yAxisAssignments,
@@ -172,10 +173,10 @@ const ChartContainer: React.FC = () => {
       return newLayout
     }
 
-    const newLayout = { ...baseLayout, yaxis: { title: 'Value' }, height: chartAreaHeight }
+    const newLayout = { ...baseLayout, yaxis: { title: { text: 'Value' } }, height: chartAreaHeight }
     const hasY2 = Object.values(tab.yAxisAssignments).includes('y2')
     if (hasY2) {
-      newLayout.yaxis2 = { title: 'Secondary Value', overlaying: 'y', side: 'right' }
+      newLayout.yaxis2 = { title: { text: 'Secondary Value' }, overlaying: 'y', side: 'right' }
     }
     return newLayout
   }

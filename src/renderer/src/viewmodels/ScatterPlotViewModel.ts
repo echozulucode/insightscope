@@ -24,12 +24,12 @@ class ScatterPlotViewModel {
 
   public getPlotLayout(): Partial<Layout> {
     return {
-      title: 'Static Scatter Plot Example',
+      title: { text: 'Static Scatter Plot Example' },
       xaxis: {
-        title: 'X Axis'
+        title: { text: 'X Axis' }
       },
       yaxis: {
-        title: 'Y Axis'
+        title: { text: 'Y Axis' }
       }
     }
   }
