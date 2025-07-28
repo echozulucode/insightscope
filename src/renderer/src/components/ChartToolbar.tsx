@@ -6,7 +6,8 @@ import {
   FaCamera,
   FaLayerGroup,
   FaChartBar,
-  FaExpandArrowsAlt
+  FaExpandArrowsAlt,
+  FaExpand
 } from 'react-icons/fa'
 
 export type LayoutMode = 'combined' | 'stacked'
@@ -46,7 +47,7 @@ const ChartToolbar: React.FC<ChartToolbarProps> = ({
     {
       id: 'box-zoom',
       tooltip: 'Box Zoom',
-      icon: <FaSearchPlus />,
+      icon: <FaExpand />,
       onClick: onBoxZoom,
       active: dragMode === 'zoom'
     },
