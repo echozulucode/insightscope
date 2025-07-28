@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
+/* eslint-disable react/prop-types */
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { FaHome, FaCog, FaUser, FaEllipsisH, FaChartBar, FaChartLine } from 'react-icons/fa'
 
 export type View = 'home' | 'settings' | 'profile' | 'scatterplot' | 'chartviewer'
@@ -22,46 +23,50 @@ const navItems: NavItem[] = [
   { id: 'settings', tooltip: 'Settings', icon: <FaCog /> }
 ]
 
-const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }): React.ReactElement => {
   const [visibleItems, setVisibleItems] = useState<NavItem[]>(navItems)
   const [hiddenItems, setHiddenItems] = useState<NavItem[]>([])
   const [isPopoverVisible, setPopoverVisible] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([])
 
-  useEffect(() => {
-    const calculateVisibleItems = () => {
-      if (!sidebarRef.current) return
+  const calculateVisibleItems = useCallback(() => {
+    if (!sidebarRef.current) return
 
-      const sidebarHeight = sidebarRef.current.offsetHeight
-      // Estimate the height per item (icon + padding/margin). Adjust this value as needed.
-      const itemHeight = 60 // Approx 56px + 4px margin
-      const maxVisible = Math.floor((sidebarHeight - 40) / itemHeight) // Subtract padding and space for ellipsis
+    const sidebarHeight = sidebarRef.current.offsetHeight
+    // Estimate the height per item (icon + padding/margin). Adjust this value as needed.
+    const itemHeight = 60 // Approx 56px + 4px margin
+    const maxVisible = Math.floor((sidebarHeight - 40) / itemHeight) // Subtract padding and space for ellipsis
 
-      if (navItems.length > maxVisible) {
-        setVisibleItems(navItems.slice(0, maxVisible -1))
-        setHiddenItems(navItems.slice(maxVisible - 1))
-      } else {
-        setVisibleItems(navItems)
-        setHiddenItems([])
-      }
-    }
-
-    calculateVisibleItems()
-
-    const resizeObserver = new ResizeObserver(calculateVisibleItems)
-    if (sidebarRef.current) {
-      resizeObserver.observe(sidebarRef.current)
-    }
-
-    return () => {
-      if (sidebarRef.current) {
-        resizeObserver.unobserve(sidebarRef.current)
-      }
+    if (navItems.length > maxVisible) {
+      setVisibleItems(navItems.slice(0, maxVisible - 1))
+      setHiddenItems(navItems.slice(maxVisible - 1))
+    } else {
+      setVisibleItems(navItems)
+      setHiddenItems([])
     }
   }, [])
 
-  const NavButton: React.FC<{ item: NavItem; isPopover?: boolean }> = ({ item, isPopover = false }) => (
+  useEffect(() => {
+    calculateVisibleItems()
+
+    const resizeObserver = new ResizeObserver(calculateVisibleItems)
+    const currentSidebarRef = sidebarRef.current
+    if (currentSidebarRef) {
+      resizeObserver.observe(currentSidebarRef)
+    }
+
+    return () => {
+      if (currentSidebarRef) {
+        resizeObserver.unobserve(currentSidebarRef)
+      }
+    }
+  }, [calculateVisibleItems])
+
+  const NavButton: React.FC<{ item: NavItem; isPopover?: boolean }> = ({
+    item,
+    isPopover = false
+  }): React.ReactElement => (
     <button
       key={item.id}
       ref={(el) => {
@@ -82,7 +87,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
   )
 
   return (
-    <div ref={sidebarRef} className="bg-gray-800 text-white w-16 flex flex-col items-center space-y-1 py-4 relative">
+    <div
+      ref={sidebarRef}
+      className="bg-gray-800 text-white w-16 flex flex-col items-center space-y-1 py-4 relative"
+    >
       <div className="flex flex-col items-center space-y-1 w-full px-2">
         {visibleItems.map((item) => (
           <NavButton key={item.id} item={item} />

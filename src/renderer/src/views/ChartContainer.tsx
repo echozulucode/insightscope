@@ -4,14 +4,15 @@ import { FaFileCsv, FaTimes } from 'react-icons/fa'
 import ChartView from './ChartView'
 import ChartToolbar, { LayoutMode } from '../components/ChartToolbar'
 import Toast from '../components/Toast'
-import Plotly from 'plotly.js'
+import Plotly, { Plot, Data, Layout } from 'plotly.js'
 
 interface ChartTab {
   id: string
   name: string
-  data: Plotly.Data[]
-  layout: Partial<Plotly.Layout>
+  data: Data[]
+  layout: Partial<Layout>
   layoutMode: LayoutMode
+  dragMode: 'pan' | 'zoom'
   yAxisAssignments: { [traceName: string]: 'y' | 'y2' }
 }
 
@@ -21,7 +22,7 @@ const ChartContainer: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [chartAreaHeight, setChartAreaHeight] = useState(0)
   const mainContentRef = useRef<HTMLDivElement>(null)
-  const chartRef = useRef<any>(null)
+  const chartRef = useRef<Plot>(null)
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
@@ -35,11 +36,11 @@ const ChartContainer: React.FC = () => {
     return () => resizeObserver.disconnect()
   }, [])
 
-  const showToast = (message: string) => {
+  const showToast = (message: string): void => {
     setToastMessage(message)
   }
 
-  const handleOpenFile = useCallback(async () => {
+  const handleOpenFile = useCallback(async (): Promise<void> => {
     const filePath = await window.api.openFile()
     if (filePath) {
       const fileContent = await window.api.readFile(filePath)
@@ -48,8 +49,9 @@ const ChartContainer: React.FC = () => {
         const headers = parsed.meta.fields?.slice(1) ?? []
         const timeColumn = parsed.meta.fields?.[0] ?? 'time'
 
-        const data = parsed.data as { [key: string]: any }[]
-        const traces: Plotly.Data[] = headers.map((header) => ({
+        type CsvData = { [key: string]: string }
+        const data = parsed.data as CsvData[]
+        const traces: Data[] = headers.map((header) => ({
           x: data.map((row) => row[timeColumn]),
           y: data.map((row) => row[header]),
           name: header,
@@ -72,6 +74,7 @@ const ChartContainer: React.FC = () => {
             yaxis: { title: { text: 'Value' } }
           },
           layoutMode: 'combined',
+          dragMode: 'zoom',
           yAxisAssignments
         }
 
@@ -88,11 +91,15 @@ const ChartContainer: React.FC = () => {
     return cleanup
   }, [handleOpenFile])
 
-  const handleLayoutModeChange = (tabId: string, mode: LayoutMode) => {
+  const handleLayoutModeChange = (tabId: string, mode: LayoutMode): void => {
     setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, layoutMode: mode } : tab)))
   }
 
-  const handleCloseTab = (e: React.MouseEvent, tabIdToClose: string) => {
+  const handleDragModeChange = (tabId: string, mode: 'pan' | 'zoom'): void => {
+    setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, dragMode: mode } : tab)))
+  }
+
+  const handleCloseTab = (e: React.MouseEvent, tabIdToClose: string): void => {
     e.stopPropagation() // Prevent the click from activating the tab
     setTabs((prevTabs) => {
       const newTabs = prevTabs.filter((tab) => tab.id !== tabIdToClose)
@@ -107,18 +114,26 @@ const ChartContainer: React.FC = () => {
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
 
-  const getChartData = (tab: ChartTab): Plotly.Data[] => {
+  const getChartData = (tab: ChartTab): Data[] => {
     if (tab.layoutMode === 'stacked') {
       return tab.data.map((trace, index) => {
         const axisNumber = index === 0 ? '' : index + 1
         return { ...trace, xaxis: `x${axisNumber}`, yaxis: `y${axisNumber}` }
       })
     }
-    return tab.data.map((trace) => ({ ...trace, yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y1' }))
+    return tab.data.map((trace) => ({
+      ...trace,
+      yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y1'
+    }))
   }
 
-  const getLayout = (tab: ChartTab): Partial<Plotly.Layout> => {
-    const baseLayout = { ...tab.layout, showlegend: true, margin: { l: 80, r: 80, t: 50, b: 50 } }
+  const getLayout = (tab: ChartTab): Partial<Layout> => {
+    const baseLayout = {
+      ...tab.layout,
+      dragmode: tab.dragMode,
+      showlegend: true,
+      margin: { l: 80, r: 80, t: 50, b: 50 }
+    }
 
     if (tab.layoutMode === 'stacked') {
       const traceCount = tab.data.length
@@ -126,7 +141,7 @@ const ChartContainer: React.FC = () => {
 
       const totalHeight = 240 * traceCount
 
-      const newLayout: Partial<Plotly.Layout> = {
+      const newLayout: Partial<Layout> = {
         ...baseLayout,
         grid: { rows: traceCount, columns: 1, pattern: 'independent', ygap: 0.05 },
         height: totalHeight
@@ -152,7 +167,11 @@ const ChartContainer: React.FC = () => {
       return newLayout
     }
 
-    const newLayout = { ...baseLayout, yaxis: { title: { text: 'Value' } }, height: chartAreaHeight }
+    const newLayout = {
+      ...baseLayout,
+      yaxis: { title: { text: 'Value' } },
+      height: chartAreaHeight
+    }
     const hasY2 = Object.values(tab.yAxisAssignments).includes('y2')
     if (hasY2) {
       newLayout.yAxis2 = { title: { text: 'Secondary Value' }, overlaying: 'y', side: 'right' }
@@ -160,14 +179,7 @@ const ChartContainer: React.FC = () => {
     return newLayout
   }
 
-  const updateChartLayout = (dragmode: 'pan' | 'zoom') => {
-    if (chartRef.current) {
-      const { plotly, ...props } = chartRef.current
-      Plotly.relayout(plotly, { dragmode })
-    }
-  }
-
-  const zoomChart = (direction: 'in' | 'out') => {
+  const zoomChart = (direction: 'in' | 'out'): void => {
     if (chartRef.current) {
       const { plotly } = chartRef.current
       const { xaxis, yaxis } = plotly.layout
@@ -184,14 +196,14 @@ const ChartContainer: React.FC = () => {
     }
   }
 
-  const resetZoom = () => {
+  const resetZoom = (): void => {
     if (chartRef.current && activeTab) {
       const { plotly } = chartRef.current
       Plotly.relayout(plotly, { 'xaxis.autorange': true, 'yaxis.autorange': true })
     }
   }
 
-  const saveImage = () => {
+  const saveImage = (): void => {
     if (chartRef.current) {
       const { plotly } = chartRef.current
       Plotly.downloadImage(plotly, { format: 'png', width: 800, height: 600, filename: 'chart' })
@@ -228,9 +240,10 @@ const ChartContainer: React.FC = () => {
       {activeTab && (
         <ChartToolbar
           layoutMode={activeTab.layoutMode}
+          dragMode={activeTab.dragMode}
           onLayoutModeChange={(mode) => handleLayoutModeChange(activeTab.id, mode)}
-          onPan={() => updateChartLayout('pan')}
-          onBoxZoom={() => updateChartLayout('zoom')}
+          onPan={() => handleDragModeChange(activeTab.id, 'pan')}
+          onBoxZoom={() => handleDragModeChange(activeTab.id, 'zoom')}
           onZoomIn={() => zoomChart('in')}
           onZoomOut={() => zoomChart('out')}
           onReset={resetZoom}
@@ -255,4 +268,3 @@ const ChartContainer: React.FC = () => {
 }
 
 export default ChartContainer
-

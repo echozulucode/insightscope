@@ -1,9 +1,10 @@
-import React from 'react';
-import Plot from 'react-plotly.js';
+import React from 'react'
+import Plot from 'react-plotly.js'
+import { Data, Layout } from 'plotly.js'
 
 interface ChartViewProps {
-  data: Plotly.Data[];
-  layout: Partial<Plotly.Layout>;
+  data: Data[]
+  layout: Partial<Layout>
 }
 
 const ChartView = React.forwardRef<Plot, ChartViewProps>(({ data, layout }, ref) => {
@@ -16,7 +17,9 @@ const ChartView = React.forwardRef<Plot, ChartViewProps>(({ data, layout }, ref)
       useResizeHandler
       config={{ displayModeBar: false }}
     />
-  );
-});
+  )
+})
 
-export default ChartView;
+ChartView.displayName = 'ChartView'
+
+export default ChartView
