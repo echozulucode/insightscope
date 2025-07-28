@@ -242,34 +242,55 @@ const ChartContainer: React.FC = () => {
     })
 
     if (layoutChanged) {
-      setTabs(tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: updatedLayout } : tab)))
+      setTabs(
+        tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: updatedLayout } : tab))
+      )
     }
   }
 
-  const zoomChart = (direction: 'in' | 'out'): void => {
-    if (!chartRef.current || !activeTab) return
+  const handleWheel = (e: WheelEvent): void => {
+    if (!activeTab || !chartRef.current) return
 
+    e.preventDefault()
     const { _fullLayout } = chartRef.current.el as any
-    const { xaxis, yaxis } = _fullLayout
+    const zoomFactor = e.deltaY < 0 ? 0.9 : 1.1
 
-    const newXRange = [...(xaxis.range || [])]
-    const newYRange = [...(yaxis.range || [])]
-    const zoomFactor = direction === 'in' ? 0.8 : 1.25
-    const xCenter = (newXRange[0] + newXRange[1]) / 2
-    const yCenter = (newYRange[0] + newYRange[1]) / 2
+    const newLayout = { ...activeTab.layout }
 
-    newXRange[0] = xCenter - (xCenter - newXRange[0]) * zoomFactor
-    newXRange[1] = xCenter + (newXRange[1] - xCenter) * zoomFactor
-    newYRange[0] = yCenter - (yCenter - newYRange[0]) * zoomFactor
-    newYRange[1] = yCenter + (newYRange[1] - yCenter) * zoomFactor
-
-    const newLayout = {
-      ...activeTab.layout,
-      xaxis: { ...activeTab.layout.xaxis, autorange: false, range: newXRange },
-      yaxis: { ...activeTab.layout.yaxis, autorange: false, range: newYRange }
+    if (e.shiftKey) {
+      // Zoom X-axis only
+      const { xaxis } = _fullLayout
+      const xRange = [...(xaxis.range || [])]
+      const xCenter = (xRange[0] + xRange[1]) / 2
+      xRange[0] = xCenter - (xCenter - xRange[0]) * zoomFactor
+      xRange[1] = xCenter + (xRange[1] - xCenter) * zoomFactor
+      newLayout.xaxis = { ...newLayout.xaxis, autorange: false, range: xRange }
+    } else if (e.ctrlKey) {
+      // Zoom Y-axis only
+      const { yaxis } = _fullLayout
+      const yRange = [...(yaxis.range || [])]
+      const yCenter = (yRange[0] + yRange[1]) / 2
+      yRange[0] = yCenter - (yCenter - yRange[0]) * zoomFactor
+      yRange[1] = yCenter + (yRange[1] - yCenter) * zoomFactor
+      newLayout.yaxis = { ...newLayout.yaxis, autorange: false, range: yRange }
+    } else {
+      // Zoom both axes
+      const { xaxis, yaxis } = _fullLayout
+      const xRange = [...(xaxis.range || [])]
+      const yRange = [...(yaxis.range || [])]
+      const xCenter = (xRange[0] + xRange[1]) / 2
+      const yCenter = (yRange[0] + yRange[1]) / 2
+      xRange[0] = xCenter - (xCenter - xRange[0]) * zoomFactor
+      xRange[1] = xCenter + (xRange[1] - xCenter) * zoomFactor
+      yRange[0] = yCenter - (yCenter - yRange[0]) * zoomFactor
+      yRange[1] = yCenter + (yRange[1] - yCenter) * zoomFactor
+      newLayout.xaxis = { ...newLayout.xaxis, autorange: false, range: xRange }
+      newLayout.yaxis = { ...newLayout.yaxis, autorange: false, range: yRange }
     }
 
-    setTabs(tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab)))
+    setTabs(
+      tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab))
+    )
   }
 
   const resetZoom = (): void => {
@@ -280,7 +301,9 @@ const ChartContainer: React.FC = () => {
       xaxis: { ...activeTab.layout.xaxis, autorange: true, range: undefined },
       yaxis: { ...activeTab.layout.yaxis, autorange: true, range: undefined }
     }
-    setTabs(tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab)))
+    setTabs(
+      tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab))
+    )
   }
 
   const saveImage = (): void => {
@@ -334,7 +357,10 @@ const ChartContainer: React.FC = () => {
           onSaveImage={saveImage}
         />
       )}
-      <main ref={mainContentRef} className="flex-grow p-4 overflow-y-auto min-h-0">
+      <main
+        ref={mainContentRef}
+        className="flex-grow p-4 overflow-y-auto min-h-0 min-w-0"
+      >
         {activeTab ? (
           <ChartView
             ref={chartRef}
@@ -342,6 +368,7 @@ const ChartContainer: React.FC = () => {
             layout={getLayout(activeTab)}
             onUpdate={handleChartUpdate}
             onDoubleClick={resetZoom}
+            onWheel={handleWheel}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
