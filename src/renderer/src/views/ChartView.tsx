@@ -6,15 +6,17 @@ interface ChartViewProps {
   layout: Partial<Plotly.Layout>;
 }
 
-const ChartView: React.FC<ChartViewProps> = ({ data, layout }) => {
+const ChartView = React.forwardRef<Plot, ChartViewProps>(({ data, layout }, ref) => {
   return (
     <Plot
+      ref={ref}
       data={data}
       layout={layout}
-      style={{ width: '100%' }}
+      style={{ width: '100%', height: '100%' }}
       useResizeHandler
+      config={{ displayModeBar: false }}
     />
   );
-};
+});
 
 export default ChartView;

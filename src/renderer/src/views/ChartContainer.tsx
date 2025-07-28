@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Papa from 'papaparse'
 import { FaFileCsv, FaTimes } from 'react-icons/fa'
 import ChartView from './ChartView'
-import ChartControls, { LayoutMode } from '../components/ChartControls'
+import ChartToolbar, { LayoutMode } from '../components/ChartToolbar'
 import Toast from '../components/Toast'
+import Plotly from 'plotly.js'
 
 interface ChartTab {
   id: string
@@ -12,7 +13,6 @@ interface ChartTab {
   layout: Partial<Plotly.Layout>
   layoutMode: LayoutMode
   yAxisAssignments: { [traceName: string]: 'y' | 'y2' }
-  fitToScreen: boolean
 }
 
 const ChartContainer: React.FC = () => {
@@ -21,6 +21,7 @@ const ChartContainer: React.FC = () => {
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [chartAreaHeight, setChartAreaHeight] = useState(0)
   const mainContentRef = useRef<HTMLDivElement>(null)
+  const chartRef = useRef<any>(null)
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
@@ -71,8 +72,7 @@ const ChartContainer: React.FC = () => {
             yaxis: { title: { text: 'Value' } }
           },
           layoutMode: 'combined',
-          yAxisAssignments,
-          fitToScreen: false
+          yAxisAssignments
         }
 
         setTabs((prevTabs) => [...prevTabs, newTab])
@@ -90,27 +90,6 @@ const ChartContainer: React.FC = () => {
 
   const handleLayoutModeChange = (tabId: string, mode: LayoutMode) => {
     setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, layoutMode: mode } : tab)))
-  }
-
-  const handleAssignY2 = (tabId: string) => {
-    setTabs(
-      tabs.map((tab) => {
-        if (tab.id === tabId && tab.data.length > 1) {
-          const secondTraceName = tab.data[1].name
-          if (secondTraceName) {
-            return {
-              ...tab,
-              yAxisAssignments: { ...tab.yAxisAssignments, [secondTraceName]: 'y2' }
-            }
-          }
-        }
-        return tab
-      })
-    )
-  }
-
-  const handleFitToScreenChange = (tabId: string, isFit: boolean) => {
-    setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, fitToScreen: isFit } : tab)))
   }
 
   const handleCloseTab = (e: React.MouseEvent, tabIdToClose: string) => {
@@ -145,7 +124,7 @@ const ChartContainer: React.FC = () => {
       const traceCount = tab.data.length
       if (traceCount === 0) return { ...baseLayout, height: chartAreaHeight }
 
-      const totalHeight = tab.fitToScreen ? chartAreaHeight : 240 * traceCount
+      const totalHeight = 240 * traceCount
 
       const newLayout: Partial<Plotly.Layout> = {
         ...baseLayout,
@@ -160,14 +139,14 @@ const ChartContainer: React.FC = () => {
         const isLastTrace = index === traceCount - 1
 
         newLayout[yAxisName] = {
-          title: { text: tab.fitToScreen ? '' : trace.name },
+          title: { text: trace.name },
           autorange: true
         }
         newLayout[xAxisName] = {
           ...tab.layout.xaxis,
           autorange: true,
           matches: index > 0 ? 'x' : undefined,
-          showticklabels: tab.fitToScreen ? isLastTrace : true
+          showticklabels: isLastTrace
         }
       })
       return newLayout
@@ -176,9 +155,47 @@ const ChartContainer: React.FC = () => {
     const newLayout = { ...baseLayout, yaxis: { title: { text: 'Value' } }, height: chartAreaHeight }
     const hasY2 = Object.values(tab.yAxisAssignments).includes('y2')
     if (hasY2) {
-      newLayout.yaxis2 = { title: { text: 'Secondary Value' }, overlaying: 'y', side: 'right' }
+      newLayout.yAxis2 = { title: { text: 'Secondary Value' }, overlaying: 'y', side: 'right' }
     }
     return newLayout
+  }
+
+  const updateChartLayout = (dragmode: 'pan' | 'zoom') => {
+    if (chartRef.current) {
+      const { plotly, ...props } = chartRef.current
+      Plotly.relayout(plotly, { dragmode })
+    }
+  }
+
+  const zoomChart = (direction: 'in' | 'out') => {
+    if (chartRef.current) {
+      const { plotly } = chartRef.current
+      const { xaxis, yaxis } = plotly.layout
+      const newXRange = [...(xaxis.range || [])]
+      const newYRange = [...(yaxis.range || [])]
+      const zoomFactor = direction === 'in' ? 0.8 : 1.25
+      const xCenter = (newXRange[0] + newXRange[1]) / 2
+      const yCenter = (newYRange[0] + newYRange[1]) / 2
+      newXRange[0] = xCenter - (xCenter - newXRange[0]) * zoomFactor
+      newXRange[1] = xCenter + (newXRange[1] - xCenter) * zoomFactor
+      newYRange[0] = yCenter - (yCenter - newYRange[0]) * zoomFactor
+      newYRange[1] = yCenter + (newYRange[1] - yCenter) * zoomFactor
+      Plotly.relayout(plotly, { 'xaxis.range': newXRange, 'yaxis.range': newYRange })
+    }
+  }
+
+  const resetZoom = () => {
+    if (chartRef.current && activeTab) {
+      const { plotly } = chartRef.current
+      Plotly.relayout(plotly, { 'xaxis.autorange': true, 'yaxis.autorange': true })
+    }
+  }
+
+  const saveImage = () => {
+    if (chartRef.current) {
+      const { plotly } = chartRef.current
+      Plotly.downloadImage(plotly, { format: 'png', width: 800, height: 600, filename: 'chart' })
+    }
   }
 
   return (
@@ -209,18 +226,20 @@ const ChartContainer: React.FC = () => {
         ))}
       </div>
       {activeTab && (
-        <ChartControls
+        <ChartToolbar
           layoutMode={activeTab.layoutMode}
           onLayoutModeChange={(mode) => handleLayoutModeChange(activeTab.id, mode)}
-          onAssignY2={() => handleAssignY2(activeTab.id)}
-          traceCount={activeTab.data.length}
-          isFitToScreen={activeTab.fitToScreen}
-          onFitToScreenChange={(isFit) => handleFitToScreenChange(activeTab.id, isFit)}
+          onPan={() => updateChartLayout('pan')}
+          onBoxZoom={() => updateChartLayout('zoom')}
+          onZoomIn={() => zoomChart('in')}
+          onZoomOut={() => zoomChart('out')}
+          onReset={resetZoom}
+          onSaveImage={saveImage}
         />
       )}
       <main ref={mainContentRef} className="flex-grow p-4 overflow-y-auto min-h-0">
         {activeTab ? (
-          <ChartView data={getChartData(activeTab)} layout={getLayout(activeTab)} />
+          <ChartView ref={chartRef} data={getChartData(activeTab)} layout={getLayout(activeTab)} />
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
