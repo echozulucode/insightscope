@@ -23,7 +23,7 @@ function App(): React.JSX.Element {
       <Sidebar activeView={activeView} setActiveView={setActiveView} />
       <div className="flex-grow flex flex-col">
         <Toolbar />
-        <main className="flex-grow p-4 overflow-y-auto bg-white">
+        <main className="flex-grow bg-white overflow-hidden">
           <div className={activeView === 'home' ? 'block' : 'hidden'}><HomeView /></div>
           <div className={activeView === 'settings' ? 'block' : 'hidden'}><SettingsView /></div>
           <div className={activeView === 'profile' ? 'block' : 'hidden'}><ProfileView /></div>

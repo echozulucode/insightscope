@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Papa from 'papaparse'
 import ChartView from './ChartView'
 import ChartControls, { LayoutMode } from '../components/ChartControls'
@@ -11,12 +11,31 @@ interface ChartTab {
   layout: Partial<Plotly.Layout>
   layoutMode: LayoutMode
   yAxisAssignments: { [traceName: string]: 'y' | 'y2' }
+  fitToScreen: boolean
 }
 
 const ChartContainer: React.FC = () => {
   const [tabs, setTabs] = useState<ChartTab[]>([])
   const [activeTabId, setActiveTabId] = useState<string | null>(null)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [chartAreaHeight, setChartAreaHeight] = useState(0)
+  const mainContentRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setChartAreaHeight(entry.contentRect.height)
+      }
+    })
+
+    if (mainContentRef.current) {
+      resizeObserver.observe(mainContentRef.current)
+    }
+
+    return () => {
+      resizeObserver.disconnect()
+    }
+  }, [])
 
   const showToast = (message: string) => {
     setToastMessage(message)
@@ -54,7 +73,8 @@ const ChartContainer: React.FC = () => {
             yaxis: { title: 'Value' }
           },
           layoutMode: 'combined',
-          yAxisAssignments
+          yAxisAssignments,
+          fitToScreen: false
         }
 
         setTabs([...tabs, newTab])
@@ -97,40 +117,81 @@ const ChartContainer: React.FC = () => {
     )
   }
 
+  const handleFitToScreenChange = (tabId: string, isFit: boolean) => {
+    setTabs(
+      tabs.map((tab) =>
+        tab.id === tabId ? { ...tab, fitToScreen: isFit } : tab
+      )
+    )
+  }
+
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
 
   const getChartData = (tab: ChartTab): Plotly.Data[] => {
     if (tab.layoutMode === 'stacked') {
-      return tab.data.map((trace, index) => ({
-        ...trace,
-        yaxis: index === 0 ? 'y' : `y${index + 1}`
-      }))
+      return tab.data.map((trace, index) => {
+        const axisNumber = index === 0 ? '' : index + 1
+        return {
+          ...trace,
+          xaxis: `x${axisNumber}`,
+          yaxis: `y${axisNumber}`
+        }
+      })
     }
+    // Combined view
     return tab.data.map((trace) => ({
       ...trace,
-      yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y'
+      yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y1'
     }))
   }
 
   const getLayout = (tab: ChartTab): Partial<Plotly.Layout> => {
+    const baseLayout = { ...tab.layout, showlegend: true, margin: { l: 80, r: 80, t: 50, b: 50 } }
+
     if (tab.layoutMode === 'stacked') {
       const traceCount = tab.data.length
-      const newLayout: Partial<Plotly.Layout> = {
-        ...tab.layout,
-        grid: { rows: traceCount, columns: 1, pattern: 'independent' },
-        height: 300 * traceCount
+      if (traceCount === 0) return { ...baseLayout, height: chartAreaHeight }
+
+      let totalHeight: number
+      if (tab.fitToScreen) {
+        totalHeight = chartAreaHeight
+      } else {
+        // A fixed height per chart that should allow 4 to be visible on most screens
+        totalHeight = 240 * traceCount
       }
+
+      const newLayout: Partial<Plotly.Layout> = {
+        ...baseLayout,
+        grid: {
+          rows: traceCount,
+          columns: 1,
+          pattern: 'independent',
+          ygap: 0.05
+        },
+        height: totalHeight
+      }
+
       tab.data.forEach((trace, index) => {
-        const yAxisName = index === 0 ? 'yaxis' : `yaxis${index + 1}`
-        const xAxisName = index === 0 ? 'xaxis' : `xaxis${index + 1}`
-        newLayout[yAxisName] = { title: trace.name }
-        if (index > 0) newLayout[xAxisName] = { ...tab.layout.xaxis, matches: 'x' }
-        else newLayout[xAxisName] = { ...tab.layout.xaxis }
+        const axisNumber = index === 0 ? '' : index + 1
+        const yAxisName = `yaxis${axisNumber}`
+        const xAxisName = `xaxis${axisNumber}`
+
+        newLayout[yAxisName] = {
+          // Hide title if fitting to screen
+          title: { text: tab.fitToScreen ? '' : trace.name },
+          autorange: true
+        }
+        newLayout[xAxisName] = {
+          ...tab.layout.xaxis,
+          autorange: true,
+          matches: index > 0 ? 'x' : undefined
+        }
       })
       return newLayout
     }
 
-    const newLayout = { ...tab.layout, yaxis: { title: 'Value' } }
+    // Combined view
+    const newLayout = { ...baseLayout, yaxis: { title: 'Value' }, height: chartAreaHeight }
     const hasY2 = Object.values(tab.yAxisAssignments).includes('y2')
     if (hasY2) {
       newLayout.yaxis2 = {
@@ -165,9 +226,11 @@ const ChartContainer: React.FC = () => {
           onLayoutModeChange={(mode) => handleLayoutModeChange(activeTab.id, mode)}
           onAssignY2={() => handleAssignY2(activeTab.id)}
           traceCount={activeTab.data.length}
+          isFitToScreen={activeTab.fitToScreen}
+          onFitToScreenChange={(isFit) => handleFitToScreenChange(activeTab.id, isFit)}
         />
       )}
-      <main className="flex-grow p-4 overflow-y-auto">
+      <main ref={mainContentRef} className="flex-grow p-4 overflow-y-auto">
         {activeTab ? (
           <ChartView
             data={getChartData(activeTab)}
@@ -193,3 +256,4 @@ const ChartContainer: React.FC = () => {
 }
 
 export default ChartContainer
+
