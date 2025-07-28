@@ -4,7 +4,14 @@ import { electronAPI } from '@electron-toolkit/preload'
 // Custom APIs for renderer
 const api = {
   openFile: (): Promise<string | undefined> => ipcRenderer.invoke('dialog:openFile'),
-  onOpenCsv: (callback: () => void) => ipcRenderer.on('menu:open-csv', callback),
+  onOpenCsv: (callback: () => void) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('menu:open-csv', handler)
+    // Return a cleanup function
+    return () => {
+      ipcRenderer.removeListener('menu:open-csv', handler)
+    }
+  },
   readFile: (filePath: string): Promise<string | null> => ipcRenderer.invoke('fs:readFile', filePath)
 }
 

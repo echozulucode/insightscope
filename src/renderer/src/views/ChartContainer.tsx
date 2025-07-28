@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Papa from 'papaparse'
+import { FaFileCsv, FaTimes } from 'react-icons/fa'
 import ChartView from './ChartView'
 import ChartControls, { LayoutMode } from '../components/ChartControls'
 import Toast from '../components/Toast'
@@ -27,21 +28,17 @@ const ChartContainer: React.FC = () => {
         setChartAreaHeight(entry.contentRect.height)
       }
     })
-
     if (mainContentRef.current) {
       resizeObserver.observe(mainContentRef.current)
     }
-
-    return () => {
-      resizeObserver.disconnect()
-    }
+    return () => resizeObserver.disconnect()
   }, [])
 
   const showToast = (message: string) => {
     setToastMessage(message)
   }
 
-  const handleOpenFile = async () => {
+  const handleOpenFile = useCallback(async () => {
     const filePath = await window.api.openFile()
     if (filePath) {
       const fileContent = await window.api.readFile(filePath)
@@ -77,24 +74,21 @@ const ChartContainer: React.FC = () => {
           fitToScreen: false
         }
 
-        setTabs([...tabs, newTab])
+        setTabs((prevTabs) => [...prevTabs, newTab])
         setActiveTabId(newTab.id)
       } else {
         showToast('Error reading file content.')
       }
     }
-  }
+  }, [])
 
   useEffect(() => {
-    window.api.onOpenCsv(handleOpenFile)
-  }, [tabs])
+    const cleanup = window.api.onOpenCsv(handleOpenFile)
+    return cleanup
+  }, [handleOpenFile])
 
   const handleLayoutModeChange = (tabId: string, mode: LayoutMode) => {
-    setTabs(
-      tabs.map((tab) =>
-        tab.id === tabId ? { ...tab, layoutMode: mode } : tab
-      )
-    )
+    setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, layoutMode: mode } : tab)))
   }
 
   const handleAssignY2 = (tabId: string) => {
@@ -105,10 +99,7 @@ const ChartContainer: React.FC = () => {
           if (secondTraceName) {
             return {
               ...tab,
-              yAxisAssignments: {
-                ...tab.yAxisAssignments,
-                [secondTraceName]: 'y2'
-              }
+              yAxisAssignments: { ...tab.yAxisAssignments, [secondTraceName]: 'y2' }
             }
           }
         }
@@ -118,11 +109,20 @@ const ChartContainer: React.FC = () => {
   }
 
   const handleFitToScreenChange = (tabId: string, isFit: boolean) => {
-    setTabs(
-      tabs.map((tab) =>
-        tab.id === tabId ? { ...tab, fitToScreen: isFit } : tab
-      )
-    )
+    setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, fitToScreen: isFit } : tab)))
+  }
+
+  const handleCloseTab = (e: React.MouseEvent, tabIdToClose: string) => {
+    e.stopPropagation() // Prevent the click from activating the tab
+    setTabs((prevTabs) => {
+      const newTabs = prevTabs.filter((tab) => tab.id !== tabIdToClose)
+      if (activeTabId === tabIdToClose) {
+        const closedTabIndex = prevTabs.findIndex((tab) => tab.id === tabIdToClose)
+        const newActiveTab = newTabs[closedTabIndex - 1] ?? newTabs[0]
+        setActiveTabId(newActiveTab?.id ?? null)
+      }
+      return newTabs
+    })
   }
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
@@ -131,18 +131,10 @@ const ChartContainer: React.FC = () => {
     if (tab.layoutMode === 'stacked') {
       return tab.data.map((trace, index) => {
         const axisNumber = index === 0 ? '' : index + 1
-        return {
-          ...trace,
-          xaxis: `x${axisNumber}`,
-          yaxis: `y${axisNumber}`
-        }
+        return { ...trace, xaxis: `x${axisNumber}`, yaxis: `y${axisNumber}` }
       })
     }
-    // Combined view
-    return tab.data.map((trace) => ({
-      ...trace,
-      yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y1'
-    }))
+    return tab.data.map((trace) => ({ ...trace, yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y1' }))
   }
 
   const getLayout = (tab: ChartTab): Partial<Plotly.Layout> => {
@@ -152,22 +144,11 @@ const ChartContainer: React.FC = () => {
       const traceCount = tab.data.length
       if (traceCount === 0) return { ...baseLayout, height: chartAreaHeight }
 
-      let totalHeight: number
-      if (tab.fitToScreen) {
-        totalHeight = chartAreaHeight
-      } else {
-        // A fixed height per chart that should allow 4 to be visible on most screens
-        totalHeight = 240 * traceCount
-      }
+      const totalHeight = tab.fitToScreen ? chartAreaHeight : 240 * traceCount
 
       const newLayout: Partial<Plotly.Layout> = {
         ...baseLayout,
-        grid: {
-          rows: traceCount,
-          columns: 1,
-          pattern: 'independent',
-          ygap: 0.05
-        },
+        grid: { rows: traceCount, columns: 1, pattern: 'independent', ygap: 0.05 },
         height: totalHeight
       }
 
@@ -175,49 +156,55 @@ const ChartContainer: React.FC = () => {
         const axisNumber = index === 0 ? '' : index + 1
         const yAxisName = `yaxis${axisNumber}`
         const xAxisName = `xaxis${axisNumber}`
+        const isLastTrace = index === traceCount - 1
 
         newLayout[yAxisName] = {
-          // Hide title if fitting to screen
           title: { text: tab.fitToScreen ? '' : trace.name },
           autorange: true
         }
         newLayout[xAxisName] = {
           ...tab.layout.xaxis,
           autorange: true,
-          matches: index > 0 ? 'x' : undefined
+          matches: index > 0 ? 'x' : undefined,
+          showticklabels: tab.fitToScreen ? isLastTrace : true
         }
       })
       return newLayout
     }
 
-    // Combined view
     const newLayout = { ...baseLayout, yaxis: { title: 'Value' }, height: chartAreaHeight }
     const hasY2 = Object.values(tab.yAxisAssignments).includes('y2')
     if (hasY2) {
-      newLayout.yaxis2 = {
-        title: 'Secondary Value',
-        overlaying: 'y',
-        side: 'right'
-      }
+      newLayout.yaxis2 = { title: 'Secondary Value', overlaying: 'y', side: 'right' }
     }
     return newLayout
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex border-b border-gray-300">
+    <div className="h-full flex flex-col bg-gray-100">
+      <div className="flex border-b border-gray-300 bg-gray-200">
         {tabs.map((tab) => (
-          <button
+          <div
             key={tab.id}
             onClick={() => setActiveTabId(tab.id)}
-            className={`px-4 py-2 ${
-              activeTabId === tab.id
-                ? 'bg-white border-t border-l border-r rounded-t'
-                : 'bg-gray-200'
+            className={`group flex items-center justify-between cursor-pointer border-r border-gray-300 ${
+              activeTabId === tab.id ? 'bg-white text-gray-800' : 'text-gray-600 hover:bg-gray-300'
             }`}
           >
-            {tab.name}
-          </button>
+            <div className="flex items-center px-4 py-2">
+              <FaFileCsv className="mr-2" />
+              <span>{tab.name}</span>
+            </div>
+            <button
+              onClick={(e) => handleCloseTab(e, tab.id)}
+              className={`p-1 rounded-md ml-2 mr-2 opacity-0 group-hover:opacity-100 hover:bg-gray-400 ${
+                activeTabId === tab.id ? 'opacity-100' : ''
+              }`}
+              title="Close"
+            >
+              <FaTimes />
+            </button>
+          </div>
         ))}
       </div>
       {activeTab && (
@@ -232,10 +219,7 @@ const ChartContainer: React.FC = () => {
       )}
       <main ref={mainContentRef} className="flex-grow p-4 overflow-y-auto">
         {activeTab ? (
-          <ChartView
-            data={getChartData(activeTab)}
-            layout={getLayout(activeTab)}
-          />
+          <ChartView data={getChartData(activeTab)} layout={getLayout(activeTab)} />
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -245,12 +229,7 @@ const ChartContainer: React.FC = () => {
           </div>
         )}
       </main>
-      {toastMessage && (
-        <Toast
-          message={toastMessage}
-          onClose={() => setToastMessage(null)}
-        />
-      )}
+      {toastMessage && <Toast message={toastMessage} onClose={() => setToastMessage(null)} />}
     </div>
   )
 }
