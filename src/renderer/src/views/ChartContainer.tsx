@@ -24,6 +24,34 @@ const ChartContainer: React.FC = () => {
   const mainContentRef = useRef<HTMLDivElement>(null)
   const chartRef = useRef<Plot>(null)
 
+  const activeTab = tabs.find((tab) => tab.id === activeTabId)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent): void => {
+      if (e.key === 'r') {
+        resetZoom()
+      }
+      if (e.key === 'Shift') {
+        if (activeTab) {
+          handleDragModeChange(activeTab.id, 'zoom')
+        }
+      }
+    }
+    const handleKeyUp = (e: KeyboardEvent): void => {
+      if (e.key === 'Shift') {
+        if (activeTab) {
+          handleDragModeChange(activeTab.id, 'pan')
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [activeTab])
+
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
@@ -74,7 +102,7 @@ const ChartContainer: React.FC = () => {
             yaxis: { title: { text: 'Value' }, autorange: true }
           },
           layoutMode: 'combined',
-          dragMode: 'zoom',
+          dragMode: 'pan',
           yAxisAssignments
         }
 
@@ -111,8 +139,6 @@ const ChartContainer: React.FC = () => {
       return newTabs
     })
   }
-
-  const activeTab = tabs.find((tab) => tab.id === activeTabId)
 
   const getChartData = (tab: ChartTab): Data[] => {
     if (tab.layoutMode === 'stacked') {
@@ -317,6 +343,7 @@ const ChartContainer: React.FC = () => {
             data={getChartData(activeTab)}
             layout={getLayout(activeTab)}
             onUpdate={handleChartUpdate}
+            onDoubleClick={resetZoom}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

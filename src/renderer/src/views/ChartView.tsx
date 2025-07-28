@@ -7,21 +7,25 @@ interface ChartViewProps {
   data: Data[]
   layout: Partial<Layout>
   onUpdate?: (figure: Readonly<Figure>) => void
+  onDoubleClick?: () => void
 }
 
-const ChartView = React.forwardRef<Plot, ChartViewProps>(({ data, layout, onUpdate }, ref) => {
-  return (
-    <Plot
-      ref={ref}
-      data={data}
-      layout={layout}
-      onUpdate={onUpdate}
-      style={{ width: '100%', height: '100%' }}
-      useResizeHandler
-      config={{ displayModeBar: false }}
-    />
-  )
-})
+const ChartView = React.forwardRef<Plot, ChartViewProps>(
+  ({ data, layout, onUpdate, onDoubleClick }, ref) => {
+    return (
+      <Plot
+        ref={ref}
+        data={data}
+        layout={layout}
+        onUpdate={onUpdate}
+        onDoubleClick={onDoubleClick}
+        style={{ width: '100%', height: '100%' }}
+        useResizeHandler
+        config={{ displayModeBar: false, scrollZoom: true }}
+      />
+    )
+  }
+)
 
 ChartView.displayName = 'ChartView'
 
