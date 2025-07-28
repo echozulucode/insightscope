@@ -26,6 +26,29 @@ const ChartContainer: React.FC = () => {
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId)
 
+  const resetZoom = useCallback((): void => {
+    if (!activeTab) return
+
+    const newLayout = {
+      ...activeTab.layout,
+      xaxis: { ...activeTab.layout.xaxis, autorange: true, range: undefined },
+      yaxis: { ...activeTab.layout.yaxis, autorange: true, range: undefined }
+    }
+    setTabs(
+      (prevTabs) =>
+        prevTabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab))
+    )
+  }, [activeTab, tabs])
+
+  const handleDragModeChange = useCallback(
+    (tabId: string, mode: 'pan' | 'zoom'): void => {
+      setTabs(
+        (prevTabs) => prevTabs.map((tab) => (tab.id === tabId ? { ...tab, dragMode: mode } : tab))
+      )
+    },
+    [setTabs]
+  )
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'r') {
@@ -50,7 +73,7 @@ const ChartContainer: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [activeTab])
+  }, [activeTab, handleDragModeChange, resetZoom])
 
   useEffect(() => {
     const resizeObserver = new ResizeObserver((entries) => {
@@ -121,10 +144,6 @@ const ChartContainer: React.FC = () => {
 
   const handleLayoutModeChange = (tabId: string, mode: LayoutMode): void => {
     setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, layoutMode: mode } : tab)))
-  }
-
-  const handleDragModeChange = (tabId: string, mode: 'pan' | 'zoom'): void => {
-    setTabs(tabs.map((tab) => (tab.id === tabId ? { ...tab, dragMode: mode } : tab)))
   }
 
   const handleCloseTab = (e: React.MouseEvent, tabIdToClose: string): void => {
@@ -253,9 +272,8 @@ const ChartContainer: React.FC = () => {
 
     e.preventDefault()
     const { _fullLayout } = chartRef.current.el as any
-    const zoomFactor = e.deltaY < 0 ? 0.9 : 1.1
-
     const newLayout = { ...activeTab.layout }
+    const zoomFactor = e.deltaY < 0 ? 0.9 : 1.1
 
     if (e.shiftKey) {
       // Zoom X-axis only
@@ -293,14 +311,29 @@ const ChartContainer: React.FC = () => {
     )
   }
 
-  const resetZoom = (): void => {
-    if (!activeTab) return
+  const zoomChart = (direction: 'in' | 'out'): void => {
+    if (!chartRef.current || !activeTab) return
+
+    const { _fullLayout } = chartRef.current.el as any
+    const { xaxis, yaxis } = _fullLayout
+
+    const newXRange = [...(xaxis.range || [])]
+    const newYRange = [...(yaxis.range || [])]
+    const zoomFactor = direction === 'in' ? 0.8 : 1.25
+    const xCenter = (newXRange[0] + newXRange[1]) / 2
+    const yCenter = (newYRange[0] + newYRange[1]) / 2
+
+    newXRange[0] = xCenter - (xCenter - newXRange[0]) * zoomFactor
+    newXRange[1] = xCenter + (newXRange[1] - xCenter) * zoomFactor
+    newYRange[0] = yCenter - (yCenter - newYRange[0]) * zoomFactor
+    newYRange[1] = yCenter + (newYRange[1] - yCenter) * zoomFactor
 
     const newLayout = {
       ...activeTab.layout,
-      xaxis: { ...activeTab.layout.xaxis, autorange: true, range: undefined },
-      yaxis: { ...activeTab.layout.yaxis, autorange: true, range: undefined }
+      xaxis: { ...activeTab.layout.xaxis, autorange: false, range: newXRange },
+      yaxis: { ...activeTab.layout.yaxis, autorange: false, range: newYRange }
     }
+
     setTabs(
       tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab))
     )
