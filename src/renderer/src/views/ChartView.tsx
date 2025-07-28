@@ -1,20 +1,28 @@
-import React from 'react';
-import Plot from 'react-plotly.js';
+import React, { useRef } from 'react'
+import Plot from 'react-plotly.js'
+import ChartToolbar from '../components/ChartToolbar'
 
 interface ChartViewProps {
-  data: Plotly.Data[];
-  layout: Partial<Plotly.Layout>;
+  data: Plotly.Data[]
+  layout: Partial<Plotly.Layout>
 }
 
 const ChartView: React.FC<ChartViewProps> = ({ data, layout }) => {
-  return (
-    <Plot
-      data={data}
-      layout={layout}
-      style={{ width: '100%' }}
-      useResizeHandler
-    />
-  );
-};
+  const plotRef = useRef(null)
 
-export default ChartView;
+  return (
+    <div>
+      <ChartToolbar plotRef={plotRef} />
+      <Plot
+        ref={plotRef}
+        data={data}
+        layout={layout}
+        style={{ width: '100%' }}
+        useResizeHandler
+        config={{ displayModeBar: false }}
+      />
+    </div>
+  )
+}
+
+export default ChartView

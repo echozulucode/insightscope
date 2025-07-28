@@ -1,8 +1,7 @@
 import React from 'react'
 import { FaFile, FaFolderOpen, FaSave, FaUndo, FaRedo, FaPlus } from 'react-icons/fa'
 
-interface ToolbarProps {
-}
+interface ToolbarProps {}
 
 const Toolbar: React.FC<ToolbarProps> = () => {
   const buttons = [

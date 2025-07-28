@@ -1,5 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { FaHome, FaCog, FaUser, FaFileAlt, FaChess, FaEllipsisH, FaUpload, FaProjectDiagram, FaRegMap, FaChartBar, FaChartLine } from 'react-icons/fa'
+import {
+  FaHome,
+  FaCog,
+  FaUser,
+  FaFileAlt,
+  FaChess,
+  FaEllipsisH,
+  FaUpload,
+  FaProjectDiagram,
+  FaRegMap,
+  FaChartBar,
+  FaChartLine
+} from 'react-icons/fa'
 
 export type View = 'home' | 'settings' | 'profile' | 'scatterplot' | 'chartviewer'
 
@@ -39,7 +51,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
       const maxVisible = Math.floor((sidebarHeight - 40) / itemHeight) // Subtract padding and space for ellipsis
 
       if (navItems.length > maxVisible) {
-        setVisibleItems(navItems.slice(0, maxVisible -1))
+        setVisibleItems(navItems.slice(0, maxVisible - 1))
         setHiddenItems(navItems.slice(maxVisible - 1))
       } else {
         setVisibleItems(navItems)
@@ -61,7 +73,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
     }
   }, [])
 
-  const NavButton: React.FC<{ item: NavItem; isPopover?: boolean }> = ({ item, isPopover = false }) => (
+  const NavButton: React.FC<{ item: NavItem; isPopover?: boolean }> = ({
+    item,
+    isPopover = false
+  }) => (
     <button
       key={item.id}
       ref={(el) => {
@@ -82,7 +97,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView }) => {
   )
 
   return (
-    <div ref={sidebarRef} className="bg-gray-800 text-white w-16 flex flex-col items-center space-y-1 py-4 relative">
+    <div
+      ref={sidebarRef}
+      className="bg-gray-800 text-white w-16 flex flex-col items-center space-y-1 py-4 relative"
+    >
       <div className="flex flex-col items-center space-y-1 w-full px-2">
         {visibleItems.map((item) => (
           <NavButton key={item.id} item={item} />

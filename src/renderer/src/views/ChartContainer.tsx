@@ -134,7 +134,10 @@ const ChartContainer: React.FC = () => {
         return { ...trace, xaxis: `x${axisNumber}`, yaxis: `y${axisNumber}` }
       })
     }
-    return tab.data.map((trace) => ({ ...trace, yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y1' }))
+    return tab.data.map((trace) => ({
+      ...trace,
+      yaxis: tab.yAxisAssignments[trace.name ?? ''] ?? 'y1'
+    }))
   }
 
   const getLayout = (tab: ChartTab): Partial<Plotly.Layout> => {
@@ -235,4 +238,3 @@ const ChartContainer: React.FC = () => {
 }
 
 export default ChartContainer
-
