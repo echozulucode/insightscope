@@ -4,7 +4,7 @@ import { FaFileCsv, FaTimes } from 'react-icons/fa'
 import ChartView from './ChartView'
 import ChartToolbar, { LayoutMode } from '../components/ChartToolbar'
 import Toast from '../components/Toast'
-import Plotly, { Plot, Data, Layout } from 'plotly.js'
+import Plotly, { Plot, Data, Layout, Figure } from 'plotly.js'
 
 interface ChartTab {
   id: string
@@ -70,8 +70,8 @@ const ChartContainer: React.FC = () => {
           data: traces,
           layout: {
             title: { text: `Chart for ${filePath}` },
-            xaxis: { title: { text: timeColumn } },
-            yaxis: { title: { text: 'Value' } }
+            xaxis: { title: { text: timeColumn }, autorange: true },
+            yaxis: { title: { text: 'Value' }, autorange: true }
           },
           layoutMode: 'combined',
           dragMode: 'zoom',
@@ -100,7 +100,7 @@ const ChartContainer: React.FC = () => {
   }
 
   const handleCloseTab = (e: React.MouseEvent, tabIdToClose: string): void => {
-    e.stopPropagation() // Prevent the click from activating the tab
+    e.stopPropagation()
     setTabs((prevTabs) => {
       const newTabs = prevTabs.filter((tab) => tab.id !== tabIdToClose)
       if (activeTabId === tabIdToClose) {
@@ -140,12 +140,9 @@ const ChartContainer: React.FC = () => {
       if (traceCount === 0) return { ...baseLayout, height: chartAreaHeight }
 
       const totalHeight = 240 * traceCount
-
-      const newLayout: Partial<Layout> = {
-        ...baseLayout,
-        grid: { rows: traceCount, columns: 1, pattern: 'independent', ygap: 0.05 },
-        height: totalHeight
-      }
+      const newLayout: Partial<Layout> = { ...baseLayout, height: totalHeight }
+      const yAxes: { [key: string]: Partial<Layout['yaxis']> } = {}
+      const xAxes: { [key: string]: Partial<Layout['xaxis']> } = {}
 
       tab.data.forEach((trace, index) => {
         const axisNumber = index === 0 ? '' : index + 1
@@ -153,60 +150,123 @@ const ChartContainer: React.FC = () => {
         const xAxisName = `xaxis${axisNumber}`
         const isLastTrace = index === traceCount - 1
 
-        newLayout[yAxisName] = {
-          title: { text: trace.name },
-          autorange: true
+        yAxes[yAxisName] = {
+          ...(tab.layout[yAxisName] || {}),
+          title: { text: trace.name }
         }
-        newLayout[xAxisName] = {
-          ...tab.layout.xaxis,
-          autorange: true,
+        xAxes[xAxisName] = {
+          ...(tab.layout[xAxisName] || {}),
           matches: index > 0 ? 'x' : undefined,
           showticklabels: isLastTrace
         }
       })
-      return newLayout
+
+      return {
+        ...newLayout,
+        ...yAxes,
+        ...xAxes,
+        grid: { rows: traceCount, columns: 1, pattern: 'independent', ygap: 0.05 }
+      }
     }
 
+    // Combined view
     const newLayout = {
       ...baseLayout,
-      yaxis: { title: { text: 'Value' } },
-      height: chartAreaHeight
+      height: chartAreaHeight,
+      yaxis: {
+        title: { text: 'Value' },
+        ...tab.layout.yaxis
+      }
     }
+
     const hasY2 = Object.values(tab.yAxisAssignments).includes('y2')
     if (hasY2) {
-      newLayout.yAxis2 = { title: { text: 'Secondary Value' }, overlaying: 'y', side: 'right' }
+      newLayout.yaxis2 = {
+        title: { text: 'Secondary Value' },
+        overlaying: 'y',
+        side: 'right',
+        ...tab.layout.yaxis2
+      }
     }
     return newLayout
   }
 
-  const zoomChart = (direction: 'in' | 'out'): void => {
-    if (chartRef.current) {
-      const { plotly } = chartRef.current
-      const { xaxis, yaxis } = plotly.layout
-      const newXRange = [...(xaxis.range || [])]
-      const newYRange = [...(yaxis.range || [])]
-      const zoomFactor = direction === 'in' ? 0.8 : 1.25
-      const xCenter = (newXRange[0] + newXRange[1]) / 2
-      const yCenter = (newYRange[0] + newYRange[1]) / 2
-      newXRange[0] = xCenter - (xCenter - newXRange[0]) * zoomFactor
-      newXRange[1] = xCenter + (newXRange[1] - xCenter) * zoomFactor
-      newYRange[0] = yCenter - (yCenter - newYRange[0]) * zoomFactor
-      newYRange[1] = yCenter + (newYRange[1] - yCenter) * zoomFactor
-      Plotly.relayout(plotly, { 'xaxis.range': newXRange, 'yaxis.range': newYRange })
+  const handleChartUpdate = (figure: Readonly<Figure>): void => {
+    if (!activeTab) return
+
+    const newLayout = figure.layout
+    if (
+      JSON.stringify(newLayout.xaxis?.range) !== JSON.stringify(activeTab.layout.xaxis?.range) ||
+      JSON.stringify(newLayout.yaxis?.range) !== JSON.stringify(activeTab.layout.yaxis?.range)
+    ) {
+      const updatedLayout: Partial<Layout> = {
+        ...activeTab.layout,
+        xaxis: {
+          ...activeTab.layout.xaxis,
+          range: newLayout.xaxis?.range,
+          autorange: false
+        },
+        yaxis: {
+          ...activeTab.layout.yaxis,
+          range: newLayout.yaxis?.range,
+          autorange: false
+        }
+      }
+      setTabs(
+        tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: updatedLayout } : tab))
+      )
     }
   }
 
-  const resetZoom = (): void => {
-    if (chartRef.current && activeTab) {
-      const { plotly } = chartRef.current
-      Plotly.relayout(plotly, { 'xaxis.autorange': true, 'yaxis.autorange': true })
+  const zoomChart = (direction: 'in' | 'out'): void => {
+    if (!chartRef.current || !activeTab) return
+
+    const { _fullLayout } = chartRef.current.el as any
+    const { xaxis, yaxis } = _fullLayout
+
+    const newXRange = [...(xaxis.range || [])]
+    const newYRange = [...(yaxis.range || [])]
+    const zoomFactor = direction === 'in' ? 0.8 : 1.25
+    const xCenter = (newXRange[0] + newXRange[1]) / 2
+    const yCenter = (newYRange[0] + newYRange[1]) / 2
+
+    newXRange[0] = xCenter - (xCenter - newXRange[0]) * zoomFactor
+    newXRange[1] = xCenter + (newXRange[1] - xCenter) * zoomFactor
+    newYRange[0] = yCenter - (yCenter - newYRange[0]) * zoomFactor
+    newYRange[1] = yCenter + (newYRange[1] - yCenter) * zoomFactor
+
+    const newLayout = {
+      ...activeTab.layout,
+      xaxis: { ...activeTab.layout.xaxis, autorange: false, range: newXRange },
+      yaxis: { ...activeTab.layout.yaxis, autorange: false, range: newYRange }
     }
+
+    setTabs(
+      tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab))
+    )
+  }
+
+  const resetZoom = (): void => {
+    if (!activeTab) return
+
+    const newLayout = {
+      ...activeTab.layout,
+      xaxis: { ...activeTab.layout.xaxis, autorange: true, range: undefined },
+      yaxis: { ...activeTab.layout.yaxis, autorange: true, range: undefined }
+    }
+    setTabs(
+      tabs.map((tab) => (tab.id === activeTabId ? { ...tab, layout: newLayout } : tab))
+    )
   }
 
   const saveImage = (): void => {
     if (chartRef.current) {
-      const { plotly } = chartRef.current
-      Plotly.downloadImage(plotly, { format: 'png', width: 800, height: 600, filename: 'chart' })
+      Plotly.downloadImage(chartRef.current.el, {
+        format: 'png',
+        width: 800,
+        height: 600,
+        filename: 'chart'
+      })
     }
   }
 
@@ -252,7 +312,12 @@ const ChartContainer: React.FC = () => {
       )}
       <main ref={mainContentRef} className="flex-grow p-4 overflow-y-auto min-h-0">
         {activeTab ? (
-          <ChartView ref={chartRef} data={getChartData(activeTab)} layout={getLayout(activeTab)} />
+          <ChartView
+            ref={chartRef}
+            data={getChartData(activeTab)}
+            layout={getLayout(activeTab)}
+            onUpdate={handleChartUpdate}
+          />
         ) : (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
